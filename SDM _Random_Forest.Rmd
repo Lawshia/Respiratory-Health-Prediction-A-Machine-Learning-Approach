@@ -1,0 +1,88 @@
+---
+title: "SDM Random Forest"
+author: "Lawshia Prabath"
+date: "2023-11-20"
+output: html_document
+---
+
+## Importing dataset
+```{r}
+file_path <- 'cleaned_data.csv'
+cleaned_dataframe_1 <- read.csv(file_path)
+
+file_path <- 'impute_dataframe.csv'
+impute_dataframe <- read.csv(file_path)
+
+file_path <- 'predict_dataframe.csv'
+predict_dataframe <- read.csv(file_path)
+
+```
+
+```{r}
+summary(cleaned_dataframe_1)
+summary(impute_dataframe)
+summary(predict_dataframe)
+```
+
+
+```{r}
+library(randomForest)
+formula <- Diagnosis ~ .  
+set.seed(123)  
+cleaned_dataframe_1$Diagnosis <- as.factor(cleaned_dataframe_1$Diagnosis)
+sample_index <- sample(1:nrow(cleaned_dataframe_1), 0.7 * nrow(cleaned_dataframe_1))
+train_data <- cleaned_dataframe_1[sample_index, ]
+test_data <- cleaned_dataframe_1[-sample_index, ]
+rf_model <- randomForest(formula, data = train_data, ntree = 100, type = 'response')
+predictions <- predict(rf_model, newdata = test_data)
+confusion_matrix <- table(predictions, test_data$Diagnosis)
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Accuracy:", accuracy, "\n")
+confusion_matrix
+varImpPlot(rf_model)
+```
+
+```{r}
+library(randomForest)
+formula <- Diagnosis ~ .  
+set.seed(123)  
+impute_dataframe$Diagnosis <- as.factor(impute_dataframe$Diagnosis)
+sample_index <- sample(1:nrow(impute_dataframe), 0.7 * nrow(impute_dataframe))
+train_data <- impute_dataframe[sample_index, ]
+test_data <- impute_dataframe[-sample_index, ]
+rf_model <- randomForest(formula, data = train_data, ntree = 100, type = 'response')
+predictions <- predict(rf_model, newdata = test_data)
+confusion_matrix <- table(predictions, test_data$Diagnosis)
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Accuracy:", accuracy, "\n")
+confusion_matrix
+varImpPlot(rf_model)
+```
+
+
+```{r}
+dim(impute_dataframe)
+```
+
+```{r}
+library(randomForest)
+formula <- Diagnosis ~ .  
+set.seed(123)  
+predict_dataframe$Diagnosis <- as.factor(predict_dataframe$Diagnosis)
+sample_index <- sample(1:nrow(predict_dataframe), 0.7 * nrow(predict_dataframe))
+train_data <- predict_dataframe[sample_index, ]
+test_data <- predict_dataframe[-sample_index, ]
+rf_model <- randomForest(formula, data = train_data, ntree = 100, type = 'response')
+predictions <- predict(rf_model, newdata = test_data)
+confusion_matrix <- table(predictions, test_data$Diagnosis)
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+cat("Accuracy:", accuracy, "\n")
+confusion_matrix
+varImpPlot(rf_model)
+```
+
+
+```{r}
+dim(impute_dataframe)
+```
+

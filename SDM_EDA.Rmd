@@ -1,0 +1,665 @@
+---
+title: "SDM_Project_1_EDA"
+author: "Lawshia Prabath"
+date: "2023-11-19"
+output: html_document
+---
+
+## Data Information
+```{r}
+file_path <- 'Exasens.csv'
+dataframe <- read.csv(file_path)
+str(dataframe)
+no_col <- ncol(dataframe)
+no_row <- nrow(dataframe)
+
+cat("Number of columns:", no_col, "\n")
+cat("Number of rows:", no_row, "\n")
+```
+
+## Data Sample
+```{r}
+head(dataframe)
+```
+
+
+## columns names
+```{r}
+column_names <- names(dataframe)
+column_names
+```
+
+
+## Renaming columns names
+```{r}
+colnames(dataframe)[which(colnames(dataframe) == "Imaginary.Part")] <- "Imaginary.Part.Min"
+colnames(dataframe)[which(colnames(dataframe) == "X")] <- "Imaginary.Part.Average"
+colnames(dataframe)[which(colnames(dataframe) == "Real.Part")] <- "Real.Part.Min"
+colnames(dataframe)[which(colnames(dataframe) == "X.1")] <- "Real.Part.Average"
+column_names <- names(dataframe)
+cat("Columns after renaming")
+column_names
+head(dataframe)
+```
+
+```{r}
+file_path <- 'cleaned_data.csv'
+cleaned_dataframe_1 <- read.csv(file_path)
+```
+
+## Data Distribution
+### Diagnosis Distribution
+```{r}
+diagnosis_counts <- table(cleaned_dataframe_1$Diagnosis)
+diagnosis_percentages <- prop.table(diagnosis_counts) * 100
+text(x = barplot(diagnosis_percentages, 
+        main = "Diagnosis Distribution",
+        xlab = "Diagnosis",
+        ylab = "Percentage",
+        col = "skyblue",
+        border = "black",
+        ylim = c(0, max(diagnosis_percentages) + 5)) , 
+     y = diagnosis_percentages + 1, 
+     label = paste0(round(diagnosis_percentages, 2), "%"),
+     pos = 3,
+     cex = 0.8)
+
+```
+
+
+### Gender Distribution
+
+```{r}
+gender_counts <- table(dataframe$Gender)
+gender_percentages <- prop.table(gender_counts) * 100
+text(x = barplot(gender_percentages, 
+        main = "Gender Distribution",
+        xlab = "Gender",
+        ylab = "Percentage",
+        col = "skyblue",
+        border = "black",
+        ylim = c(0, max(gender_percentages) + 5)) , 
+     y = gender_percentages , 
+     label = paste0(round(gender_percentages, 2), "%"),
+     pos = 3,
+     cex = 0.8)
+```
+
+### Smoking Distribution
+```{r}
+Smoking_counts <- table(dataframe$Smoking)
+Smoking_percentages <- prop.table(Smoking_counts) * 100
+text(x = barplot(Smoking_percentages, 
+        main = "Smoking Distribution",
+        xlab = "Smoking",
+        ylab = "Percentage",
+        col = "skyblue",
+        border = "black",
+        ylim = c(0, max(Smoking_percentages) + 5)) , 
+     y = Smoking_percentages, 
+     label = paste0(round(Smoking_percentages, 2), "%"),
+     pos = 3,
+     cex = 0.8)
+```
+
+
+## Summary statistics
+```{r}
+continuous_columns <- c("Imaginary.Part.Min","Imaginary.Part.Average","Real.Part.Min","Real.Part.Average","Age")
+for (i in continuous_columns) {
+  cat("Descriptive Statistics for Column", i ,"\n")
+  print(summary(dataframe[[i]]))
+}
+```
+
+
+## Missing value distribution
+```{r}
+library(ggplot2)
+
+columns_of_interest <- c("Imaginary.Part.Min", "Real.Part.Min")
+
+original_subset_df <- dataframe[, -which(names(dataframe) %in% columns_of_interest)]
+
+missing_data <- sapply(original_subset_df, function(x) sum(is.na(x)))
+valid_data <- sapply(original_subset_df, function(x) sum(!is.na(x)))
+
+plot_data <- data.frame(
+  Column = names(original_subset_df),
+  Missing = missing_data,
+  Valid = valid_data
+)
+plot_data_long <- tidyr::gather(plot_data, key = "Status", value = "Count", -Column)
+fill_colors <- c("Missing" = "#00563F", "Valid" = "#990000")
+
+ggplot(plot_data_long, aes(x = Column, y = Count, fill = Status)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Missing vs Valid Values",
+       x = "Columns",
+       y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values = fill_colors)
+
+```
+##Outlier analysis
+```{r}
+
+library(ggplot2)
+
+# Selecting columns of interest
+columns_of_interest <- c("Imaginary.Part.Average", "Real.Part.Average", "Age")
+
+# Creating a new dataframe with selected columns
+selected_data <- dataframe[, columns_of_interest]
+
+# Reshaping data for box plot
+data_long <- tidyr::gather(selected_data, key = "Variable", value = "Value")
+
+# Creating a box plot
+ggplot(data_long, aes(x = Variable, y = Value)) +
+  geom_boxplot() +
+  labs(title = "Box Plot of Variables",
+       x = "Variable",
+       y = "Value")
+```
+## Data set selection
+
+## Data summary before imputation
+```{r}
+summary(dataframe)
+```
+
+## 1. Removing the rows with null values from the dataset
+```{r}
+cleaned_dataframe_1 <- na.omit(dataframe)
+dim(cleaned_dataframe_1)
+write.csv(cleaned_dataframe_1, "cleaned_data.csv", row.names = FALSE)
+```
+
+```{r}
+head(cleaned_dataframe_1)
+```
+
+## Data summary after complete case  analysis
+```{r}
+summary(cleaned_dataframe_1)
+```
+
+
+## Correlation analysis
+```{r}
+#install.packages("corrplot")
+library(corrplot)
+
+corrdf <- cleaned_dataframe_1[, !(names(cleaned_dataframe_1) %in% c("ID"))]
+diagnosis_mapping <- c("COPD" = 1, "HC" = 2, "Asthma" = 3, "Infected" = 4)
+corrdf$Diagnosis <- as.integer(factor(corrdf$Diagnosis, levels = names(diagnosis_mapping), labels = diagnosis_mapping))
+
+columns_to_scale <- c("Imaginary.Part.Min", "Imaginary.Part.Average", "Real.Part.Min", "Real.Part.Average", "Age")
+sapply(corrdf[columns_to_scale], class)
+
+corrdf$Gender <- as.numeric(corrdf$Gender)
+corrdf$Smoking <- as.numeric(corrdf$Smoking)
+corrdf$Diagnosis <- as.numeric(corrdf$Diagnosis)
+correlation_matrix <- cor(corrdf)
+print(correlation_matrix)
+corrplot(correlation_matrix, method = "color")
+```
+
+## 2. Predicting the missing values using regression - Imaginary.Part.Average
+```{r}
+library(tidyverse)
+selected_columns <- c("Diagnosis", "ID", "Gender", "Age", "Smoking", "Imaginary.Part.Average")
+model_data <- cleaned_dataframe %>% select(selected_columns)
+set.seed(123)  
+train_indices <- createDataPartition(model_data$Imaginary.Part.Average, p = 0.8, list = FALSE)
+train_data <- model_data[train_indices, ]
+test_data <- model_data[-train_indices, ]
+
+# Training
+lm_model <- lm(Imaginary.Part.Average ~ Diagnosis +Gender + Age + Smoking, data = train_data)
+to_be_predicted_data <- dataframe %>% select(selected_columns)
+# Predicting
+predicted_values <- predict(lm_model, newdata = to_be_predicted_data)
+# Update the missing values in the 'Imaginary.Part.Average' column
+predict_dataframe$Imaginary.Part.Average[is.na(predict_dataframe$Imaginary.Part.Average)] <- predicted_values[is.na(dataframe$Imaginary.Part.Average)]
+summary(predict_dataframe$Imaginary.Part.Average)
+
+## Metrics
+train_predictions <- predict(lm_model, newdata = train_data)
+test_predictions <- predict(lm_model, newdata = test_data)
+# Calculate Mean Squared Error (MSE)
+train_rmse <- sqrt(mean((train_data$Imaginary.Part.Average - train_predictions)^2))
+test_rmse <- sqrt(mean((test_data$Imaginary.Part.Average - test_predictions)^2))
+cat("Train Root Mean Squared Error (MSE):", train_rmse, "\n")
+cat("Test Root Mean Squared Error (MSE):", test_rmse, "\n")
+n <- length(train_data$Imaginary.Part.Average)
+p <- length(coef(model)) - 1  
+r_squared <- 1 - sum((train_data$Imaginary.Part.Average - train_predictions)^2) / sum((train_data$Imaginary.Part.Average - mean(train_data$Imaginary.Part.Average))^2)
+adjusted_r_squared <- 1 - ((1 - r_squared) * (n - 1) / (n - p - 1))
+cat("Adjusted R-squared:", adjusted_r_squared, "\n")
+```
+
+
+## 2. Predicting the missing values using regression - Real.Part.Average
+```{r}
+selected_columns <- c("Diagnosis", "ID", "Gender", "Age", "Smoking", "Real.Part.Average")
+model_data <- cleaned_dataframe %>% select(selected_columns)
+set.seed(123)  
+train_indices <- createDataPartition(model_data$Real.Part.Average, p = 0.8, list = FALSE)
+train_data <- model_data[train_indices, ]
+test_data <- model_data[-train_indices, ]
+
+# Training
+lm_model <- lm(Real.Part.Average ~ Diagnosis +Gender + Age + Smoking, data = train_data)
+to_be_predicted_data <- dataframe %>% select(selected_columns)
+# Predicting
+predicted_values <- predict(lm_model, newdata = to_be_predicted_data)
+
+predict_dataframe$Real.Part.Average[is.na(predict_dataframe$Real.Part.Average)] <- predicted_values[is.na(dataframe$Real.Part.Average)]
+summary(predict_dataframe$Real.Part.Average)
+
+## Metrics
+train_predictions <- predict(lm_model, newdata = train_data)
+test_predictions <- predict(lm_model, newdata = test_data)
+# Calculate Mean Squared Error (MSE)
+train_rmse <- sqrt(mean((train_data$Real.Part.Average - train_predictions)^2))
+test_rmse <- sqrt(mean((test_data$Real.Part.Average - test_predictions)^2))
+cat("Train Root Mean Squared Error (MSE):", train_rmse, "\n")
+cat("Test Root Mean Squared Error (MSE):", test_rmse, "\n")
+n <- length(train_data$Real.Part.Average)
+p <- length(coef(model)) - 1
+r_squared <- 1 - sum((train_data$Real.Part.Average - train_predictions)^2) / sum((train_data$Real.Part.Average - mean(train_data$Real.Part.Average))^2)
+adjusted_r_squared <- 1 - ((1 - r_squared) * (n - 1) / (n - p - 1))
+cat("Adjusted R-squared:", adjusted_r_squared, "\n")
+```
+
+## Data summary after prediction
+```{r}
+summary(predict_dataframe)
+```
+
+
+## 3. Imputing the missing values with median
+```{r}
+impute_dataframe <- data.frame(dataframe)
+columns_to_impute <- c("Imaginary.Part.Average", "Real.Part.Average")
+impute_dataframe <- impute_dataframe %>%
+  mutate(across(all_of(columns_to_impute), ~ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+```
+## Data summary after imputation
+```{r}
+summary(impute_dataframe)
+```
+
+
+## Comparison of distribution 
+```{r}
+library(ggplot2)
+
+columns_of_interest <- c("Imaginary.Part.Average", "Real.Part.Average")
+
+
+original_subset_df <- impute_dataframe[, columns_of_interest]
+original_long_df <- tidyr::gather(original_subset_df, key = "Column", value = "Value")
+original_long_df$Imputation <- "Original"
+
+
+imputed_subset_df <- cleaned_dataframe[, columns_of_interest]
+imputed_long_df <- tidyr::gather(imputed_subset_df, key = "Column", value = "Value")
+imputed_long_df$Imputation <- "Imputed"
+
+predicted_subset_df <- predict_dataframe[, columns_of_interest]
+predicted_long_df <- tidyr::gather(predicted_subset_df, key = "Column", value = "Value")
+predicted_long_df$Imputation <- "Predicted"
+
+# Combine the dataframes
+combined_df <- rbind(original_long_df, imputed_long_df, predicted_long_df)
+
+ggplot(combined_df, aes(x = Value, fill = Imputation, color = Column)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ Column, scales = "free") +
+  labs(title = "Distribution Comparison - Before and After Imputation") +
+  scale_x_continuous(limits = c(-400, -200)) +
+  theme_minimal()
+
+
+original_subset_df <- impute_dataframe[, columns_of_interest]
+original_long_df <- tidyr::gather(original_subset_df, key = "Column", value = "Value")
+original_long_df$Imputation <- "Complete Case Analysis"
+
+imputed_subset_df <- cleaned_dataframe[, columns_of_interest]
+imputed_long_df <- tidyr::gather(imputed_subset_df, key = "Column", value = "Value")
+imputed_long_df$Imputation <- "Single Imputed"
+
+predicted_subset_df <- predict_dataframe[, columns_of_interest]
+predicted_long_df <- tidyr::gather(predicted_subset_df, key = "Column", value = "Value")
+predicted_long_df$Imputation <- "Predicted"
+
+
+combined_df <- rbind(original_long_df, imputed_long_df, predicted_long_df)
+
+
+ggplot(combined_df, aes(x = Value, fill = Imputation, color = Column)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ Column, scales = "free") +
+  labs(title = "Distribution Comparison - Before and After Imputation") +
+  scale_x_continuous(limits = c(-500, -400)) +
+  theme_minimal()
+
+```
+
+## Sample power analysis
+```{r}
+install.packages("pwr")
+library(pwr)
+```
+```{r}
+effect_size <- 0.5
+alpha <- 0.05
+power <- 0.8
+
+pwr.t.test(d = effect_size, sig.level = alpha, power = power, type = "two.sample")
+
+```
+
+
+# Model Development
+## Data pre-processing 
+### Data Encoding
+```{r}
+corrdf$Gender <- as.factor(corrdf$Gender)
+corrdf$Smoking <- as.factor(corrdf$Smoking)
+corrdf$Diagnosis <- as.factor(corrdf$Diagnosis)
+```
+### Remove unwanted features
+```{r}
+columns_to_remove <- c("Imaginary.Part.Min", "Real.Part.Min")
+corrdf <- corrdf[, !(names(corrdf) %in% columns_to_remove)]
+```
+
+### Feature Scaling
+```{r}
+corrdf[, c("Imaginary.Part.Average", "Real.Part.Average", "Age")] <- scale(corrdf[, c("Imaginary.Part.Average", "Real.Part.Average", "Age")])
+```
+
+## KNN Classification
+
+###splitting the dataset
+```{r}
+set.seed(123)  
+train_index <- createDataPartition(corrdf$Diagnosis, p = 0.7, list = FALSE)
+train_data <- corrdf[train_index, ]
+test_data <- corrdf[-train_index, ]
+```
+
+### Multi-class Logistic Regression without Regularization
+```{r}
+library(nnet)
+formula <- Diagnosis ~ .
+multinom_model <- multinom(formula, data = train_data)
+
+predictions <- predict(multinom_model, newdata = test_data)
+
+conf_matr <- confusionMatrix(predictions, test_data$Diagnosis)
+
+cat("Multinomial Logistic Regression Accuracy:")
+print(conf_matr)
+```
+
+```{r}
+library(caret)
+library(gplots)
+
+
+conf_matrix <- confusionMatrix(predictions, test_data$Diagnosis, positive = "2")
+
+colnames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+rownames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+
+
+heatmap.2(conf_matrix$table, 
+          col =  c("#ADD8E6", "#87CEEB"),  # Color scheme
+          main = "Confusion Matrix Logistic",
+          xlab = "Predicted",
+          ylab = "Actual",
+          cellnote = conf_matrix$table,
+          notecol = "black",
+          density.info = "none",
+          trace = "none",
+          dendrogram = "none",
+          cexRow = 0.8,
+          cexCol = 0.8, 
+          key = FALSE)
+
+```
+
+### KNN with hyper-tuning
+```{r}
+#install.packages("class")
+library(class)
+
+set.seed(123)
+knn_tuned <- train(Diagnosis ~ ., data = train_data, method = "knn",
+                   tuneGrid = expand.grid(k = seq(1, 30, by = 1)))
+cat("Optimal K:",knn_tuned$bestTune$k, "\n")
+knn_model_tuned <- knn(train_data[, -1], test_data[, -1], train_data$Diagnosis, k = knn_tuned$bestTune$k)
+knn_accuracy_tuned <- sum(knn_model_tuned == test_data$Diagnosis) / length(test_data$Diagnosis)
+cat("KNN Accuracy with Hyperparameter Tuning:", knn_accuracy_tuned, "\n")
+conf_matrix_knn_tuned <- confusionMatrix(knn_model_tuned, test_data$Diagnosis, positive = "2")
+print("Confusion Matrix for KNN with Hyperparameter Tuning:")
+print(conf_matrix_knn_tuned)
+```
+
+```{r}
+library(caret)
+library(gplots)
+
+# Create a confusion matrix
+conf_matrix <- confusionMatrix(knn_model_tuned, test_data$Diagnosis, positive = "2")
+
+colnames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+rownames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+
+# Display heatmap with data labels
+heatmap.2(conf_matrix$table, 
+          col =  c("#ADD8E6", "#87CEEB"),  # Color scheme
+          main = "Confusion Matrix KNN",
+          xlab = "Predicted",
+          ylab = "Actual",
+          cellnote = conf_matrix$table,
+          notecol = "black",
+          density.info = "none",
+          trace = "none",
+          dendrogram = "none",
+          cexRow = 0.8,
+          cexCol = 0.8, 
+          key = FALSE)
+
+```
+
+
+```{r}
+# Assuming knn_tuned$results has columns 'k' and 'Accuracy'
+plot(knn_tuned$results$k, knn_tuned$results$Accuracy, col = "blue", pch = 20, main = "K vs Accuracy Plot", xlab = "K", ylab = "Accuracy")
+
+# Add a line connecting the points for better visualization
+lines(knn_tuned$results$k, knn_tuned$results$Accuracy, type = "b", col = "blue")
+
+```
+
+
+## SVM
+### hyper-tuning - Kernel
+```{r}
+#install.packages("e1071")
+library(e1071)
+
+set.seed(123)
+tune_grid <- expand.grid(C = c(0.5, 1, 10,100), gamma = c(1, 0.1, 0.01, 0.001, 0.0001), kernel = c('radial','linear', 'poly', 'rbf', 'sigmoid'))
+svm_tune <- tune(svm, Diagnosis ~ ., data = train_data, 
+                 tuneGrid = tune_grid)
+best_svm_model <- svm_tune$best.model
+svm_tune_pred <- predict(best_svm_model, newdata = test_data)
+svm_tune_acc <- confusionMatrix(svm_tune_pred, test_data$Diagnosis, positive = "2")
+cat("SVM Accuracy with hyperparameter tuning:")
+print(svm_tune_acc)
+```
+```{r}
+svm_tune$best.model$kernel
+svm_tune$best.model$cost
+svm_tune$best.model$gamma
+
+```
+
+
+```{r}
+library(caret)
+library(gplots)
+conf_matrix <- confusionMatrix(svm_tune_pred, test_data$Diagnosis, positive = "2")
+
+colnames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+rownames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+
+heatmap.2(conf_matrix$table, 
+          col =  c("#ADD8E6", "#87CEEB"),  # Color scheme
+          main = "Confusion Matrix SVM Radial",
+          xlab = "Predicted",
+          ylab = "Actual",
+          cellnote = conf_matrix$table,
+          notecol = "black",
+          density.info = "none",
+          trace = "none",
+          dendrogram = "none",
+          cexRow = 0.8,
+          cexCol = 0.8, 
+          key = FALSE)
+
+```
+
+
+
+## Random Forest 
+### hyper-tuning
+
+```{r}
+set.seed(123)
+
+# Specify ntree and mtry values
+ntree_values <- c(80, 90, 100, 110,120)
+mtry_values <- c(2, 3, 4, 5, 5)
+
+# Initialize an empty list to store models and results
+rf_results <- list()
+
+# Loop over ntree values
+for (ntree_value in ntree_values) {
+  # Inner loop over mtry values
+  for (mtry_value in mtry_values) {
+    # Fit the Random Forest model with specified ntree and mtry
+    rf_model <- randomForest(Diagnosis ~ ., data = train_data, ntree = ntree_value, mtry = mtry_value)
+    
+    # Make predictions on the test data
+    rf_preds <- predict(rf_model, newdata = test_data)
+    
+    # Create a confusion matrix manually
+    conf_matrix <- confusionMatrix(rf_preds, test_data$Diagnosis)
+    
+    # Calculate metrics
+    accuracy <- conf_matrix$overall["Accuracy"]
+    
+    # Store results in the list
+    result_entry <- data.frame(
+      ntree = ntree_value,
+      mtry = mtry_value,
+      accuracy = accuracy
+    )
+    rf_results[[paste("ntree", ntree_value, "mtry", mtry_value, sep = "_")]] <- result_entry
+  }
+}
+
+# Combine results into a data frame
+rf_results_df <- do.call(rbind, rf_results)
+
+# Calculate the average sensitivity and specificity across all models
+avg_sensitivity <- mean(rf_results_df$sensitivity, na.rm = TRUE)
+avg_specificity <- mean(rf_results_df$specificity, na.rm = TRUE)
+
+# Print the results
+cat("Average Sensitivity:", avg_sensitivity, "\n")
+cat("Average Specificity:", avg_specificity, "\n")
+
+# Print the detailed results
+print(rf_results_df)
+
+write.csv(rf_results_df, "randomforest.csv", row.names = FALSE)
+```
+
+
+## Final Model
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+# Specify ntree and mtry values
+ntree_value <- 80
+mtry_value <- 2
+
+# Fit the Random Forest model with specified ntree and mtry
+rf_model <- randomForest(Diagnosis ~ ., data = train_data, ntree = ntree_value, mtry = mtry_value)
+
+# Make predictions on the test data
+rf_pred <- predict(rf_model, newdata = test_data)
+
+# Evaluate the model
+conf_matrix <- confusionMatrix(rf_pred, test_data$Diagnosis, positive = "2")
+cat("Confusion Matrix:\n")
+print(conf_matrix)
+
+# Print the specified ntree and mtry values
+cat("Specified ntree:", ntree_value, "\n")
+cat("Specified mtry:", mtry_value, "\n")
+
+# Get variable importance
+var_importance <- importance(rf_model)
+
+# Print variable importance
+print("Variable Importance:")
+print(var_importance)
+
+ggplot(var_importance, aes(x = rownames(var_importance), y = MeanDecreaseGini)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Variable Importance", x = "Variable", y = "Mean Decrease Gini") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+
+library(caret)
+library(gplots)
+conf_matrix <- confusionMatrix(rf_pred, test_data$Diagnosis, positive = "2")
+
+colnames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+rownames(conf_matrix$table) <- c("COPD","HC", "Asthma", "Infected") 
+
+heatmap.2(conf_matrix$table, 
+          col =  c("#ADD8E6", "#87CEEB"),  # Color scheme
+          main = "Confusion Matrix Random Forest",
+          xlab = "Predicted",
+          ylab = "Actual",
+          cellnote = conf_matrix$table,
+          notecol = "black",
+          density.info = "none",
+          trace = "none",
+          dendrogram = "none",
+          cexRow = 0.8,
+          cexCol = 0.8, 
+          key = FALSE)
+
+```
+
+```
+
+
+
